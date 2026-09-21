@@ -185,6 +185,7 @@
   .ph-ciencias{ background-color:#FFE27A; color:#1A1712; background-image:radial-gradient(rgba(26,23,18,.18) 1.4px, transparent 1.4px); }
   .ph-matematica{ background-color:#3A3117; color:#FFC800; background-image:radial-gradient(rgba(255,200,0,.25) 1.4px, transparent 1.4px); }
   .ph-engenharia{ background-color:#F3DE8A; color:#1A1712; background-image:radial-gradient(rgba(26,23,18,.2) 1.4px, transparent 1.4px); }
+  .ph-arte{ background-color:var(--yellow-dim); color:#1A1712; background-image:repeating-linear-gradient(45deg, rgba(26,23,18,.16) 0 2px, transparent 2px 12px); background-size:auto; }
   .tags{ display:flex; flex-wrap:wrap; gap:6px; }
   .tag-quiz{ background:var(--yellow); color:#1A1712; border-color:#1A1712; }
 
@@ -196,6 +197,21 @@
   .drafts ul{ list-style:none; margin:0; padding:0; display:grid; gap:6px; }
   .drafts li{ display:flex; flex-wrap:wrap; justify-content:space-between; gap:2px 16px; }
   .drafts a{ font-weight:600; }
+
+  /* Organizar artigos (só a equipe editorial): ordem da lista */
+  .organizer{ margin-bottom:28px; padding:18px 20px 20px; border:2px solid var(--line); border-radius:var(--radius); background:var(--surface); }
+  .organizer h3{ font-size:1.05rem; margin-bottom:6px; }
+  .organizer > .help{ margin:0 0 14px; max-width:68ch; }
+  .organizer .flash{ margin-bottom:14px; }
+  .org-list{ list-style:none; margin:0; padding:0; display:grid; gap:10px; }
+  .org-item{ display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; min-width:0; padding:12px 14px; border:2px solid var(--line); border-radius:var(--radius); background:var(--bg); }
+  .org-pos{ flex:none; display:grid; place-items:center; min-width:36px; height:36px; padding-inline:6px; border:2px solid var(--line); border-radius:999px; font-family:'IBM Plex Mono', ui-monospace, monospace; font-size:13px; font-weight:500; }
+  .org-info{ flex:1 1 180px; min-width:0; display:grid; gap:4px; }
+  .org-titulo{ font-weight:600; overflow-wrap:anywhere; }
+  .org-sub{ display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; font-size:14px; color:var(--muted); }
+  .org-tools{ display:flex; flex-wrap:wrap; gap:8px; }
+  .tool[disabled]{ opacity:.45; cursor:not-allowed; }
+  .tool[disabled]:hover{ background:var(--surface); }
 
   /* Paginação da lista de artigos */
   .pager{ margin-top:36px; }
@@ -543,6 +559,7 @@
             <h2 id="catalog-title">Artigos dos voluntários</h2>
             <p class="lead">Artigos, projetos e quizzes tornam conceitos de ciência, tecnologia, engenharia e matemática mais fáceis de entender e aplicar. O conteúdo é gratuito, acessível pelo celular e pensado para diferentes níveis de conhecimento, sem exigir experiência prévia.</p>
           </div>
+          <button type="button" class="btn btn-secondary" id="orgBtn" aria-pressed="false" aria-controls="organizer" hidden>Organizar artigos</button>
         </div>
 
         <p class="flash" id="homeFlash" role="status"></p>
@@ -555,6 +572,13 @@
         <section class="drafts" id="drafts" aria-labelledby="drafts-title" hidden>
           <h3 id="drafts-title">Seus artigos em andamento</h3>
           <ul id="draftsList"></ul>
+        </section>
+
+        <section class="organizer" id="organizer" aria-labelledby="org-title" hidden>
+          <h3 id="org-title">Organizar artigos</h3>
+          <p class="help">Só a equipe editorial vê esta tela. A ordem daqui é a ordem da página inicial: o artigo 1 aparece primeiro. Artigos publicados depois de você organizar entram no topo até você mudar a ordem.</p>
+          <p class="flash" id="orgStatus" role="status"></p>
+          <ol class="org-list" id="orgList" aria-label="Artigos publicados, na ordem da lista"></ol>
         </section>
 
         <div class="tools" id="tools" hidden>
@@ -570,6 +594,7 @@
             <button type="button" class="chip" data-filter="eletronica" aria-pressed="false">Eletrônica</button>
             <button type="button" class="chip" data-filter="robotica" aria-pressed="false">Robótica</button>
             <button type="button" class="chip" data-filter="engenharia" aria-pressed="false">Engenharia</button>
+            <button type="button" class="chip" data-filter="arte" aria-pressed="false">Arte</button>
             <button type="button" class="chip" data-filter="outros" aria-pressed="false">Outros assuntos</button>
           </div>
         </div>
@@ -677,6 +702,7 @@
             <option value="eletronica">Eletrônica</option>
             <option value="robotica">Robótica</option>
             <option value="engenharia">Engenharia</option>
+            <option value="arte">Arte</option>
             <option value="outros">Outros assuntos</option>
           </select>
         </div>
@@ -3376,9 +3402,10 @@ window.STEM_FIREBASE = {
   'use strict';
 
   var TITULO_BASE = document.title;
-  var TEMAS = { ciencias:'Ciências', matematica:'Matemática', programacao:'Programação', eletronica:'Eletrônica', robotica:'Robótica', engenharia:'Engenharia', outros:'Outros assuntos' };
+  var TEMAS = { ciencias:'Ciências', matematica:'Matemática', programacao:'Programação', eletronica:'Eletrônica', robotica:'Robótica', engenharia:'Engenharia', arte:'Arte', outros:'Outros assuntos' };
   var KEY = 'stem:artigos';
   var KEY_AUTOR = 'stem:autor';
+  var KEY_CUR = 'stem:curadoria';
   var POR_PAGINA = 15;   // quantos artigos aparecem por página na lista (pode trocar depois)
   function svgIcone(d){ return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' + d + '</svg>'; }
   var ICONES = {
@@ -3388,6 +3415,7 @@ window.STEM_FIREBASE = {
     ciencias:    svgIcone('<circle cx="12" cy="12" r="1.4"/><ellipse cx="12" cy="12" rx="9" ry="3.6"/><ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(120 12 12)"/>'),
     matematica:  svgIcone('<path d="M6 7h6M9 4v6M14 8h6M6.5 14.5l5 5M11.5 14.5l-5 5M14 17h6"/>'),
     engenharia:  svgIcone('<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>'),
+    arte:        svgIcone('<path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/><path d="M13.5 6.5h.01M17.5 10.5h.01M8.5 7.5h.01M6.5 12.5h.01"/>'),
     outros:      svgIcone('<path d="M5 3h14v18H5z"/><path d="M8.5 8h7M8.5 12h7M8.5 16h4"/>')
   };
 
@@ -3425,6 +3453,24 @@ window.STEM_FIREBASE = {
   var sessaoOk = false, resolverSessao = null;
   var sessaoPronta = new Promise(function(res){ resolverSessao = res; });
   var carregado = false, falhaCarga = false, ultimaAtualizacao = 0;
+
+  /* --- ordem dos artigos na lista (definida pela equipe editorial) ---
+     Fica em equipe/curadoria: { json: '{"versao":1,"ordem":[ids]}' }.
+     Artigos que não estão em "ordem" (os publicados depois) aparecem no topo, do mais novo para o mais antigo. */
+  function normalizarCuradoria(v){
+    var c = { ordem:[] }, vistos = Object.create(null);
+    if(!v || typeof v !== 'object') return c;
+    (Array.isArray(v.ordem) ? v.ordem : []).forEach(function(id){
+      if(typeof id !== 'string' || !id || id.length > 120 || vistos[id] || c.ordem.length >= 1000) return;
+      vistos[id] = true; c.ordem.push(id);
+    });
+    return c;
+  }
+  function lerCuradoriaLocal(){
+    try{ var raw = localStorage.getItem(KEY_CUR); return raw ? JSON.parse(raw) : null; }catch(e){ return null; }
+  }
+  var curadoria = normalizarCuradoria(null);
+  var curGravando = false, curDeNovo = false, curMsg = '';
 
   /* --- modo de teste (localStorage) --- */
   function lerLocal(){
@@ -3530,6 +3576,15 @@ window.STEM_FIREBASE = {
       var json = JSON.stringify(obj);
       if(json.length > LIMITE_DOC) return Promise.reject({ code:'stem/grande' });
       return fbDb.collection('equipe').doc('pagina').set({ json:json, atualizadoEm:Date.now() });
+    },
+    curadoria: function(){
+      return fbDb.collection('equipe').doc('curadoria').get().then(function(s){
+        if(!s.exists) return null;
+        try{ return JSON.parse(s.data().json || 'null'); }catch(e){ return null; }
+      });
+    },
+    salvarCuradoria: function(obj){
+      return fbDb.collection('equipe').doc('curadoria').set({ json:JSON.stringify(obj), atualizadoEm:Date.now() });
     }
   } : {
     publicados: function(){ return Promise.resolve(artigos.filter(function(a){ return a.status === 'publicado'; })); },
@@ -3552,11 +3607,26 @@ window.STEM_FIREBASE = {
     salvarEquipe: function(obj){
       try{ localStorage.setItem(KEY_EQ, JSON.stringify(obj)); return Promise.resolve(); }
       catch(e){ return Promise.reject({ code:'stem/local' }); }
+    },
+    curadoria: function(){ return Promise.resolve(lerCuradoriaLocal()); },
+    salvarCuradoria: function(obj){
+      try{ localStorage.setItem(KEY_CUR, JSON.stringify(obj)); return Promise.resolve(); }
+      catch(e){ return Promise.reject({ code:'stem/local' }); }
     }
   };
 
+  // Carrega a ordem. Nunca rejeita: se falhar, fica com o que já tinha. Não sobrescreve uma gravação em andamento.
+  function carregarCuradoria(){
+    if(curGravando || curDeNovo) return Promise.resolve();
+    return Dados.curadoria().then(function(o){
+      if(curGravando || curDeNovo) return;
+      curadoria = normalizarCuradoria(o);
+    }).catch(function(){});
+  }
+
   artigos = NUVEM ? [] : lerLocal();
   if(!NUVEM){
+    curadoria = normalizarCuradoria(lerCuradoriaLocal());
     sessao.user = { uid:'local', nome:'' }; sessao.editor = true;
     sessaoOk = true; carregado = true; resolverSessao();
   }
@@ -3577,7 +3647,8 @@ window.STEM_FIREBASE = {
     return Promise.all([
       Dados.publicados(),
       uid ? Dados.meus(uid) : Promise.resolve([]),
-      sessao.editor ? Dados.fila() : Promise.resolve([])
+      sessao.editor ? Dados.fila() : Promise.resolve([]),
+      carregarCuradoria()
     ]).then(function(r){
       var vistos = {}, novo = [];
       r[0].concat(r[1], r[2]).forEach(function(a){
@@ -4212,6 +4283,7 @@ window.STEM_FIREBASE = {
     if((m = h.match(/^#\/artigo\/([\w-]+)$/))){ abrirLeitor(m[1]); return; }
 
     var mudou = mostrar('home');
+    if(mudou) orgAtivo = false;
     document.title = TITULO_BASE;
     $('homeFlash').className = 'flash' + (flash && flash.warn ? ' warn' : '');
     $('homeFlash').textContent = flash ? flash.texto : '';
@@ -4237,9 +4309,16 @@ window.STEM_FIREBASE = {
   var gridEl = $('grid'), countEl = $('count'), filtersEl = $('filters'), toolsEl = $('tools');
   var filtro = 'todos', busca = '', pagina = 1, pagerEl = $('pager');
 
+  // Publicados na ordem do site: primeiro os que ainda não têm posição (mais novos primeiro), depois a ordem da equipe.
   function publicados(){
-    return artigos.filter(function(a){ return a.status === 'publicado'; })
+    var lista = artigos.filter(function(a){ return a.status === 'publicado'; })
       .sort(function(x, y){ return (y.publicadoEm || 0) - (x.publicadoEm || 0); });
+    var pos = Object.create(null);
+    curadoria.ordem.forEach(function(id, i){ pos[id] = i; });
+    var soltos = [], fixos = [];
+    lista.forEach(function(a){ (a.id in pos ? fixos : soltos).push(a); });
+    fixos.sort(function(x, y){ return pos[x.id] - pos[y.id]; });
+    return soltos.concat(fixos);
   }
 
   function cardHTML(a){
@@ -4262,6 +4341,7 @@ window.STEM_FIREBASE = {
   function renderCatalogo(){
     var todos = publicados();
     renderPaineis();
+    if(renderOrganizador(todos)) return;
     if(!carregado || (falhaCarga && !todos.length)){
       gridEl.innerHTML = ''; toolsEl.hidden = true; pagerEl.hidden = true;
       $('emptyAll').hidden = true; $('emptyFilter').hidden = true;
@@ -4318,6 +4398,111 @@ window.STEM_FIREBASE = {
     // volta ao topo da lista e leva o foco para o título, já que o botão clicado foi redesenhado
     $('conteudo').scrollIntoView();
     var t = $('catalog-title'); t.setAttribute('tabindex', '-1'); t.focus({ preventScroll:true });
+  });
+
+  /* ---------- Organizar artigos (equipe editorial) ---------- */
+  var orgAtivo = false;
+  function orgStatus(t, warn){
+    var el = $('orgStatus');
+    el.className = 'flash' + (warn ? ' warn' : '');
+    el.textContent = t || '';
+  }
+  // Grava uma alteração por vez; se pedirem outra no meio, grava de novo o estado mais recente.
+  function gravarCuradoria(msg){
+    if(!sessao.editor) return;
+    if(msg) curMsg = msg;
+    orgStatus(curMsg + ' Salvando…', false);
+    if(curGravando){ curDeNovo = true; return; }
+    curGravando = true;
+    Dados.salvarCuradoria({ versao:1, ordem:curadoria.ordem.slice() }).then(function(){
+      if(!curDeNovo) orgStatus(curMsg + ' Salvo às ' + hora() + '.', false);
+    }).catch(function(err){
+      var c = err && err.code;
+      orgStatus(c === 'permission-denied'
+        ? 'Sem permissão para salvar. Entre com uma conta da equipe editorial e confira se as regras do Firestore liberam o documento equipe/curadoria.'
+        : c === 'stem/local' ? 'O navegador não deixou guardar a alteração (armazenamento cheio ou bloqueado).'
+        : 'Não foi possível salvar agora. Confira a conexão e tente de novo: a alteração vale só nesta tela até salvar.', true);
+      curDeNovo = false;
+    }).then(function(){
+      curGravando = false;
+      if(curDeNovo){ curDeNovo = false; gravarCuradoria(); }
+    });
+  }
+  // Fixa a ordem atual (todos os publicados) antes de mover; ids que não estão carregados agora ficam no fim.
+  function fixarOrdem(lista){
+    var ids = lista.map(function(a){ return a.id; });
+    var tem = Object.create(null);
+    ids.forEach(function(id){ tem[id] = true; });
+    curadoria.ordem.forEach(function(id){ if(!tem[id]) ids.push(id); });
+    curadoria.ordem = ids.slice(0, 1000);
+  }
+  // Devolve a nova posição (0 = primeiro) ou -1 se não deu para mover.
+  function moverArtigo(id, como){
+    fixarOrdem(publicados());
+    var o = curadoria.ordem, i = o.indexOf(id);
+    if(i < 0) return -1;
+    var j = como === 'top' ? 0 : (como === 'up' ? i - 1 : i + 1);
+    if(j < 0 || j >= o.length || j === i) return -1;
+    o.splice(i, 1); o.splice(j, 0, id);
+    return j;
+  }
+  function orgItemHTML(a, i, total){
+    var t = a.titulo || 'Sem título', n = esc(t), id = esc(a.id);
+    function btn(acao, rot, aria, off){
+      return '<button type="button" class="tool" data-a="' + acao + '" data-id="' + id + '" aria-label="' + aria + ' ' + n + '"' + (off ? ' disabled' : '') + '>' + rot + '</button>';
+    }
+    return '<li class="org-item">' +
+      '<span class="org-pos" aria-hidden="true">' + (i + 1) + '</span>' +
+      '<span class="org-info"><a class="org-titulo" href="#/artigo/' + encodeURIComponent(a.id) + '">' + n + '<span class="sr-only"> (posição ' + (i + 1) + ' de ' + total + ')</span></a>' +
+        '<span class="org-sub"><span class="tag">' + esc(TEMAS[temaKey(a)]) + '</span>' +
+          '<span>Por ' + esc(a.autor || 'autor sem nome') + '</span></span></span>' +
+      '<span class="org-tools">' +
+        btn('o-top', 'Ao topo', 'Levar ao topo da lista:', i === 0) +
+        btn('o-up', 'Subir', 'Subir na lista:', i === 0) +
+        btn('o-down', 'Descer', 'Descer na lista:', i === total - 1) +
+      '</span></li>';
+  }
+  // Mostra ou esconde o botão e o painel. Devolve true quando o painel ocupa o lugar da lista normal.
+  function renderOrganizador(lista){
+    var btn = $('orgBtn');
+    btn.hidden = !(sessao.editor && carregado && lista.length > 0);
+    if(btn.hidden) orgAtivo = false;
+    btn.textContent = orgAtivo ? 'Concluir organização' : 'Organizar artigos';
+    btn.setAttribute('aria-pressed', orgAtivo ? 'true' : 'false');
+    $('organizer').hidden = !orgAtivo;
+    if(!orgAtivo) return false;
+    $('orgList').innerHTML = lista.map(function(a, i){ return orgItemHTML(a, i, lista.length); }).join('');
+    gridEl.innerHTML = ''; toolsEl.hidden = true; pagerEl.hidden = true;
+    $('emptyAll').hidden = true; $('emptyFilter').hidden = true;
+    countEl.textContent = lista.length + (lista.length === 1 ? ' artigo publicado' : ' artigos publicados');
+    return true;
+  }
+  function focoOrg(id, prefer){
+    var ordem = [prefer, 'o-up', 'o-down', 'o-top'];
+    var bs = Array.prototype.slice.call($('orgList').querySelectorAll('button[data-a]'));
+    for(var k = 0; k < ordem.length; k++){
+      for(var m = 0; m < bs.length; m++){
+        if(bs[m].getAttribute('data-id') === id && bs[m].getAttribute('data-a') === ordem[k] && !bs[m].disabled){ bs[m].focus(); return; }
+      }
+    }
+  }
+  $('orgBtn').addEventListener('click', function(){
+    if(!sessao.editor) return;
+    orgAtivo = !orgAtivo;
+    orgStatus('', false);
+    renderCatalogo();
+    if(orgAtivo){ var h = $('org-title'); h.setAttribute('tabindex', '-1'); h.focus(); }
+  });
+  $('orgList').addEventListener('click', function(e){
+    var b = e.target.closest && e.target.closest('button[data-a]');
+    if(!b || b.disabled || !sessao.editor) return;
+    var id = b.getAttribute('data-id'), a = achar(id);
+    if(!a) return;
+    var j = moverArtigo(id, b.getAttribute('data-a').slice(2));
+    if(j < 0) return;
+    gravarCuradoria('“' + (a.titulo || 'Sem título') + '” agora está na posição ' + (j + 1) + ' de ' + publicados().length + '.');
+    renderCatalogo();
+    focoOrg(id, b.getAttribute('data-a'));
   });
 
   // "Seus artigos em andamento" (todo mundo) e "Aguardando revisão" (só a equipe editorial)
